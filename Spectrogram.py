@@ -102,6 +102,9 @@ data_array = np.array(data_buffer)
 # Generate Spectrogram
 frequencies, times, Sxx = signal.spectrogram(data_array, fs=SAMPLE_RATE)
 
+# Generate Spectrogram
+frequencies, times, Sxx = signal.spectrogram(data_array, fs=SAMPLE_RATE)
+
 # Plot the Spectrogram
 plt.figure(figsize=(10, 6))
 plt.pcolormesh(times, frequencies / 1e6, 10 * np.log10(Sxx), shading='gouraud')
@@ -109,5 +112,5 @@ plt.ylabel('Frequency [MHz]')
 plt.xlabel('Time [s]')
 plt.title('Spectrogram of Wireless Transmission')
 plt.colorbar(label='Intensity [dB]')
-plt.ylim([0, 1])  # Limit frequency range to 0-1 MHz
+plt.ylim([400, 450])  # Limit frequency range to focus on 433.9 MHz
 plt.show()
