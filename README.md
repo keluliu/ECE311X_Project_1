@@ -1,58 +1,61 @@
-import adi
+sdr@ece331x:~$ /bin/python3 /home/sdr/Documents/ECE331X/ECE331X_Project_1/whetherSpectogram.py
+Traceback (most recent call last):
+  File "/home/sdr/Documents/ECE331X/ECE331X_Project_1/whetherSpectogram.py", line 31, in <module>
+    waterfall_2darray[i, :] = np.log10(abs(fft_result))
+ValueError: could not broadcast input array from shape (1048576,) into shape (1024,)
+
+
+
+
 import numpy as np
+import adi
 import matplotlib.pyplot as plt
-from scipy import signal
 import time
 
-# Constants
-CARRIER_FREQUENCY = int(433.9e6)  # Carrier frequency in Hz
-SAMPLE_RATE = int(6e6)             # Sampling rate in Hz
-COLLECTION_DURATION = 30            # Total duration for data collection in seconds
-INTERMITTENT_INTERVAL = 15          # Time interval between transmissions in seconds
+sample_rate = 10e6
 
-# Create SDR instance
+center_freq = 2.4e9
+bandwidth = center_freq/4
+fft_size = 1024
+buff_size = 2**20
+num_ffts = buff_size//fft_size
+
 sdr = adi.Pluto("ip:192.168.2.1")
 
-# Configure SDR
-sdr.sample_rate = SAMPLE_RATE
-sdr.rx_rf_bandwidth = int(4e6)  # Set bandwidth to 4 MHz
-sdr.rx_lo = CARRIER_FREQUENCY     # Set LO frequency to 433.9 MHz
+sdr.sample_rate = int(sample_rate)
+sdr.rx_rf_bandwidth = int(bandwidth)
+sdr.rx_lo = int(center_freq)
+sdr.rx_buffer_size = buff_size
 
-# Print out the configured properties to verify
-print(f"Sample Rate: {sdr.sample_rate}")
-print(f"RX LO: {sdr.rx_lo}")
+samples = sdr.rx()
 
-# Initialize an empty list to store the collected data
-data_buffer = []
+waterfall_2darray = np.zeros((num_ffts, fft_size))
 
-# Collect data
-start_time = time.time()
-while time.time() - start_time < COLLECTION_DURATION:
-    current_time = time.time()
-    if int(current_time) % INTERMITTENT_INTERVAL == 0:
-        print(f"Collecting data at {time.ctime(current_time)}...")
-        x = sdr.rx()  # Receive data
-        data_buffer.extend(x)  # Append received data to buffer
-        time.sleep(INTERMITTENT_INTERVAL)  # Wait for the next interval
+def compute_fft(sample):
+    return np.fft.fftshift((np.fft.fft(samples)))
 
-# Convert collected data to a NumPy array
-data_array = np.array(data_buffer)
+for i in range(num_ffts):
+    x = samples[i*fft_size:(i+1)*fft_size]
+    fft_result = compute_fft(x)
+    waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
-# Generate Spectrogram
-frequencies, times, Sxx = signal.spectrogram(data_array, fs=SAMPLE_RATE)
+block_duration_ms = (buff_size / sample_rate) * 1000
 
-# Adjusting the times to reflect the correct duration
-# Since the collection duration is 30 seconds, we can adjust times accordingly
-times = np.linspace(0, COLLECTION_DURATION, num=len(times))
+plt.imshow(waterfall_2darray, aspect='auto', extent = [-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
+plt.xlabel('Frequency (Hz)')
+plt.ylabel('Time (ms)')
+plt.title('Spectrogram')
+plt.colorbar(label='Magnitude')
+plt.show()
 
-# Plot the Spectrogram
-plt.figure(figsize=(10, 6))
-plt.pcolormesh(times, frequencies / 1e6, 10 * np.log10(Sxx), shading='gouraud')
-plt.ylabel('Frequency [MHz]')
-plt.xlabel('Time [s]')
-plt.title('Spectrogram of Wireless Transmission')
-plt.colorbar(label='Intensity [dB]')
+time_axis = np.arrange(len(samples)) / sample_rate * 1000
 
-plt.ylim([400, 450])  # Limit frequency range to focus on 433.9 MHz
-plt.xlim([0, COLLECTION_DURATION])  # Set x-axis limits from 0 to 30 seconds
+plt.figure(figsize=(12, 6))
+plt.subplot(2, 1, 1)
+plt.plot(time_axis, samples.real, label="Real")
+plt.plot(time_axis, samples.imag, label="Imaginary")
+plt.xlabel("Time (ms)")
+plt.ylabel("Amplitude")
+plt.title("Time-Domain Signal")
+plt.legend()
 plt.show()
