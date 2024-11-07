@@ -11,7 +11,7 @@ fft_size = 1024  # Size of each FFT
 chunk_size = 1_000_000  # Number of samples to collect in each chunk
 total_duration = 20  # Total duration for data collection in seconds
 total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
-num_chunks = total_samples_needed // chunk_size  # Number of chunks to collect
+num_chunks = total_samples_needed // chunk_size + 1  # Number of chunks to collect
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -26,13 +26,19 @@ data_buffer = []
 
 # Start collecting data in chunks
 print("Collecting data for 20 seconds...")
-for _ in range(num_chunks):
+start_time = time.time()
+while len(data_buffer) < total_samples_needed:
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
-    time.sleep(0.1)  # Small delay to avoid overwhelming the buffer
+    elapsed_time = time.time() - start_time
+    if elapsed_time >= total_duration:
+        break  # Exit if we have collected enough data
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
+
+# Check the number of samples collected
+print(f"Total samples collected: {len(data_array)}")
 
 # Prepare a 2D array to hold FFT results
 num_ffts = len(data_array) // fft_size  # Update number of FFTs based on collected data length
