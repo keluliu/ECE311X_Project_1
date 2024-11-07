@@ -8,9 +8,9 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-chunk_size = 1_000_000  # Number of samples to collect at once to avoid buffer issues
+buff_size = 2**20  # Buffer size for receiving samples
 total_duration = 20  # Total duration for data collection in seconds
-total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
+samples_per_chunk = int(sample_rate * 1)  # Number of samples to collect per second
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -19,16 +19,27 @@ sdr = adi.Pluto("ip:192.168.2.1")
 sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
+sdr.rx_buffer_size = buff_size
 
-# Collect data
+# Initialize the data buffer
 data_buffer = []
-print("Collecting data for 20 seconds...")
-start_time = time.time()
 
-while len(data_buffer) < total_samples_needed:
+# Start collecting data
+start_time = time.time()
+print("Collecting data for 20 seconds...")
+
+while time.time() - start_time < total_duration:
+    # Calculate remaining time
+    remaining_time = total_duration - (time.time() - start_time)
+    # Determine how many samples to collect in this chunk
+    num_samples_to_collect = min(samples_per_chunk, int(sample_rate * remaining_time))
+
+    # Receive data
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
-    time.sleep(0.1)  # Small delay to prevent overwhelming the buffer
+
+    # Optionally, you can add a small delay if necessary, to avoid overwhelming the buffer
+    time.sleep(0.1)  # Sleep for 100 ms (adjust as necessary)
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
