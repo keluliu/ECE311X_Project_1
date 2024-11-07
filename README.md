@@ -5,7 +5,7 @@ import time
 
 # Define parameters
 sample_rate = 10e6  # Sampling rate in Hz
-center_freq = 2.4e9  # Center frequency set to 2.4 GHz
+center_freq = 433.9e6  # Center frequency set to 2.4 GHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
 buff_size = 2**20  # Buffer size for receiving samples
@@ -52,8 +52,8 @@ time_axis = np.arange(len(samples)) / sample_rate * 1000  # in ms
 
 # Plot time-domain signal with both Real and Imaginary parts in the same subplot
 plt.figure(figsize=(12, 6))
-plt.plot(time_axis, samples.real, label="Real", color="blue", alpha=0.7)  # Plot Real part
-plt.plot(time_axis, samples.imag, label="Imaginary", color="orange", alpha=0.7)  # Plot Imaginary part
+plt.plot(time_axis, samples.real, label="Real", color="blue")  # Plot Real part
+plt.plot(time_axis, samples.imag, label="Imaginary", color="orange",)  # Plot Imaginary part
 
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
