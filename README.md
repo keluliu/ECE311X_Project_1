@@ -8,8 +8,12 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 10_000_000  # Smaller buffer size to avoid "File too large" error
-num_ffts = buff_size // fft_size  # Number of FFTs to compute
+total_duration = 20  # Desired duration for data collection in seconds
+chunk_size = 10_000  # Number of samples to collect in each chunk
+
+# Calculate total samples needed for the specified duration
+total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
+data_buffer = []
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -17,17 +21,27 @@ sdr = adi.Pluto("ip:192.168.2.1")
 # Configure the SDR
 sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
-sdr.rx_lo = int(center_freq)
-sdr.rx_buffer_size = buff_size
+sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
 
-# Calculate total samples for 20 seconds
-total_samples_needed = int(sample_rate * 20)  # Total samples for 20 seconds
-data_buffer = []
-
-# Collect data in segments
+# Start collecting data
+print("Collecting data...")
+start_time = time.time()
 while len(data_buffer) < total_samples_needed:
-    samples = sdr.rx()  # Receive data
-    data_buffer.extend(samples)  # Append received data to buffer
+    try:
+        # Receive a chunk of samples
+        samples = sdr.rx()  # Receive data
+        data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
+        elapsed_time = time.time() - start_time
+        print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
+        
+        # If we are close to the total samples needed, break the loop
+        if len(data_buffer) >= total_samples_needed:
+            break
+            
+        time.sleep(0.1)  # Small delay to allow for buffer filling
+    except Exception as e:
+        print(f"Error collecting data: {e}")
+        break
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
@@ -70,7 +84,7 @@ plt.ylabel("Amplitude")
 plt.title("Time-Domain Signal")
 plt.legend()
 plt.grid()
-plt.xlim([0, 20000])  # Set x-axis limit based on total time for 20 seconds
+plt.xlim([0, total_duration * 1000])  # Set x-axis limit based on total time for 20 seconds
 plt.ylim([-2500, 2500])  # Adjust y-axis limits for better visibility
 plt.tight_layout()
 plt.show()
