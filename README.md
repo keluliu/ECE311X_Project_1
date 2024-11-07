@@ -24,12 +24,18 @@ total_samples_needed = int(sample_rate * collection_time)  # Total samples for 2
 data_buffer = []
 
 print("Collecting data for 20 seconds...")
-start_time = time.time()
 
-# Collect data until the required number of samples is reached
+# Collect data in chunks to avoid blocking
+start_time = time.time()
 while len(data_buffer) < total_samples_needed:
+    # Adjust the number of samples to receive per call
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
+
+    # Check elapsed time
+    elapsed_time = time.time() - start_time
+    if elapsed_time >= collection_time:
+        break  # Exit loop if we've collected enough data
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
