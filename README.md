@@ -50,23 +50,13 @@ plt.show()
 # Define time axis for the time-domain signal
 time_axis = np.arange(len(samples)) / sample_rate * 1000  # in ms
 
-# Plot time-domain signal with separate subplots
-plt.figure(figsize=(12, 8))
-
-# Plot Real Part
-plt.subplot(2, 1, 1)
-plt.plot(time_axis, samples.real, label="Real", color="blue")
+# Plot time-domain signal with both real and imaginary parts in the same plot
+plt.figure(figsize=(12, 6))
+plt.plot(time_axis, samples.real, label="Real", color="blue", alpha=0.5)  # Semi-transparent for better visibility
+plt.plot(time_axis, samples.imag, label="Imaginary", color="orange", alpha=0.5)  # Semi-transparent for better visibility
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
-plt.title("Time-Domain Signal (Real Part)")
-plt.legend()
-
-# Plot Imaginary Part
-plt.subplot(2, 1, 2)
-plt.plot(time_axis, samples.imag, label="Imaginary", color="orange")
-plt.xlabel("Time (ms)")
-plt.ylabel("Amplitude")
-plt.title("Time-Domain Signal (Imaginary Part)")
+plt.title("Time-Domain Signal (Real and Imaginary Parts)")
 plt.legend()
 
 # Show the plot
