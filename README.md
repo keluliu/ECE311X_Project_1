@@ -10,7 +10,6 @@ bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center f
 fft_size = 1024  # Size of each FFT
 buff_size = 2**20  # Buffer size for receiving samples
 collection_time = 20  # Total collection time in seconds
-samples_per_receive = int(sample_rate)  # Samples to receive per iteration
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -20,34 +19,30 @@ sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)
 
-# Calculate total samples for the specified collection time
+# Calculate total samples for 20 seconds
 total_samples_needed = int(sample_rate * collection_time)  # Total samples for 20 seconds
 data_buffer = []
 
 print("Collecting data for 20 seconds...")
 
-# Collect data in chunks
+# Collect data in chunks to avoid blocking
 start_time = time.time()
 while len(data_buffer) < total_samples_needed:
-    # Receive a chunk of samples
-    samples = sdr.rx()
+    # Receive data
+    samples = sdr.rx()  # Receive data
     if samples is not None:
         data_buffer.extend(samples)  # Append received data to buffer
+        print(f"Collected {len(samples)} samples, Total collected: {len(data_buffer)}")  # Log number of samples collected
     else:
         print("No samples received. Check SDR connection.")
-        
-    # Print status every second
-    if len(data_buffer) % samples_per_receive < fft_size:
-        elapsed_time = time.time() - start_time
-        print(f"Collected {len(data_buffer)} samples (Elapsed Time: {elapsed_time:.2f}s)")
 
-    # Check if we have reached the total collection time
-    if time.time() - start_time >= collection_time:
-        break  # Exit if we've collected enough data
+    # Check elapsed time
+    elapsed_time = time.time() - start_time
+    if elapsed_time >= collection_time:
+        break  # Exit loop if we've collected enough data
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
-print(f"Total collected samples: {len(data_array)}")  # Print the total samples collected
 
 # Prepare a 2D array to hold FFT results
 num_ffts = len(data_array) // fft_size  # Update number of FFTs based on collected data length
@@ -61,7 +56,7 @@ def compute_fft(samples):
 for i in range(num_ffts):
     x = data_array[i * fft_size:(i + 1) * fft_size]
     fft_result = compute_fft(x)
-    waterfall_2darray[i, :] = np.log10(abs(fft_result) + 1e-10)  # Avoid log(0)
+    waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
 # Plotting the waterfall spectrogram
 plt.figure(figsize=(12, 6))
