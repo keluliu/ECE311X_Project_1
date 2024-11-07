@@ -9,10 +9,11 @@ center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
 total_duration = 20  # Desired duration for data collection in seconds
+chunk_size = 1_000_000  # Number of samples to collect in each chunk
+subsample_factor = 10  # Factor to reduce the number of samples plotted
 
 # Calculate total samples needed for the specified duration
 total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
-chunk_size = 10_000_000  # Number of samples to collect in each chunk
 data_buffer = []
 
 # Create an instance of the Pluto SDR
@@ -32,20 +33,14 @@ while len(data_buffer) < total_samples_needed:
         # Receive a chunk of samples
         samples = sdr.rx()  # Receive data
         if samples is not None:
-            # Append received data to buffer, taking care not to exceed total_samples_needed
             data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
-            if len(data_buffer) >= total_samples_needed:
-                break  # Exit loop if we've collected enough data
+            print(f"Collected {len(data_buffer)} samples out of {total_samples_needed}")
         else:
             print("No samples received. Check SDR connection.")
-        
+
         elapsed_time = time.time() - start_time
-        print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
-
-        # Check if the elapsed time exceeds the total duration
         if elapsed_time >= total_duration:
-            break
-
+            break  # Exit loop if we've collected enough data
     except Exception as e:
         print(f"Error collecting data: {e}")
         break
@@ -67,11 +62,13 @@ for i in range(num_ffts):
     fft_result = compute_fft(x)
     waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
-# Duration of the buffer in milliseconds
-block_duration_ms = (len(data_array) / sample_rate) * 1000
+# Downsample the waterfall data for plotting
+downsampled_waterfall = waterfall_2darray[::subsample_factor]
 
 # Plotting the waterfall spectrogram
-plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
+plt.figure(figsize=(12, 6))
+plt.imshow(downsampled_waterfall, aspect='auto', extent=[-sample_rate / 2, sample_rate / 2, 0, (len(data_array) / sample_rate) * 1000],
+           cmap='viridis')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Time (ms)')
 plt.title('Spectrogram of Wireless Transmission')
@@ -81,10 +78,13 @@ plt.show()
 # Define time axis for the time-domain signal
 time_axis = np.arange(len(data_array)) / sample_rate * 1000  # in ms
 
+# Subsample data for time-domain signal plotting
+subsampled_data_array = data_array[::subsample_factor]  # Downsample the time-domain signal
+
 # Plot time-domain signal with both Real and Imaginary parts in the same subplot
 plt.figure(figsize=(12, 6))
-plt.plot(time_axis, data_array.real, label="Real", color="blue")  # Plot Real part
-plt.plot(time_axis, data_array.imag, label="Imaginary", color="orange")  # Plot Imaginary part
+plt.plot(time_axis[::subsample_factor], subsampled_data_array.real, label="Real", color="blue")  # Plot Real part
+plt.plot(time_axis[::subsample_factor], subsampled_data_array.imag, label="Imaginary", color="orange")  # Plot Imaginary part
 
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
