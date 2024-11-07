@@ -8,7 +8,7 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 10_000_000  # Buffer size for receiving samples
+buff_size = 20 * 1024 * 1024  # Buffer size set to 20MB to accommodate more samples
 collection_time = 20  # Total collection time in seconds
 
 # Create an instance of the Pluto SDR
@@ -18,12 +18,14 @@ sdr = adi.Pluto("ip:192.168.2.1")
 sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)
+sdr.rx_buffer_size = buff_size  # Set buffer size
 
 # Initialize an empty list to store the collected data
 data_buffer = []
 
 print("Collecting data for 20 seconds...")
 start_time = time.time()
+# Collect data for the specified duration
 while (time.time() - start_time) < collection_time:
     samples = sdr.rx()  # Receive data
     if samples is not None:
@@ -31,7 +33,6 @@ while (time.time() - start_time) < collection_time:
         print(f"Collected {len(samples)} samples, Total collected: {len(data_buffer)}")
     else:
         print("No samples received. Check SDR connection.")
-    time.sleep(0.1)  # Small delay to prevent overwhelming the buffer
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
@@ -48,7 +49,7 @@ def compute_fft(samples):
 for i in range(num_ffts):
     x = data_array[i * fft_size:(i + 1) * fft_size]
     fft_result = compute_fft(x)
-    waterfall_2darray[i, :] = np.log10(abs(fft_result))
+    waterfall_2darray[i, :] = np.log10(abs(fft_result) + 1e-10)  # Avoid log(0)
 
 # Plotting the waterfall spectrogram
 plt.figure(figsize=(12, 6))
