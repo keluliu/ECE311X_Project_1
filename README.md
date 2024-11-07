@@ -5,10 +5,11 @@ import time
 
 # Define parameters
 sample_rate = 10e6  # Sampling rate in Hz
-center_freq = 2.4e9  # Center frequency set to 2.4 GHz
+center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 2**20  # Buffer size for receiving samples
+buff_size = 10_000_000  # Buffer size for receiving samples (keep it manageable)
+duration = 20  # Total duration for data collection in seconds
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -17,17 +18,18 @@ sdr = adi.Pluto("ip:192.168.2.1")
 sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)
-sdr.rx_buffer_size = buff_size
 
-# Calculate total samples for 20 seconds
-total_samples_needed = int(sample_rate * 20)  # Total samples for 20 seconds
+# Initialize an empty list to store the collected data
 data_buffer = []
-
-# Collect data for 20 seconds
 start_time = time.time()
-while len(data_buffer) < total_samples_needed and (time.time() - start_time < 20):
+elapsed_time = 0
+
+# Collect data for the specified duration
+print("Collecting data for 20 seconds...")
+while elapsed_time < duration:
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
+    elapsed_time = time.time() - start_time  # Update elapsed time
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
@@ -70,7 +72,7 @@ plt.ylabel("Amplitude")
 plt.title("Time-Domain Signal")
 plt.legend()
 plt.grid()
-plt.xlim([0, 20000])  # Set x-axis limit based on total time for 20 seconds
+plt.xlim([0, duration * 1000])  # Set x-axis limit based on total time for 20 seconds
 plt.ylim([-2500, 2500])  # Adjust y-axis limits for better visibility
 plt.tight_layout()
 plt.show()
