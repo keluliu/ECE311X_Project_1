@@ -8,8 +8,8 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 10_000_000  # Buffer size for receiving samples (keep it manageable)
-duration = 20  # Total duration for data collection in seconds
+buff_size = 2**20  # Buffer size for receiving samples
+collection_time = 20  # Total collection time in seconds
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -19,17 +19,17 @@ sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)
 
-# Initialize an empty list to store the collected data
+# Calculate total samples for 20 seconds
+total_samples_needed = int(sample_rate * collection_time)  # Total samples for 20 seconds
 data_buffer = []
-start_time = time.time()
-elapsed_time = 0
 
-# Collect data for the specified duration
 print("Collecting data for 20 seconds...")
-while elapsed_time < duration:
+start_time = time.time()
+
+# Collect data until the required number of samples is reached
+while len(data_buffer) < total_samples_needed:
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
-    elapsed_time = time.time() - start_time  # Update elapsed time
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
@@ -48,11 +48,10 @@ for i in range(num_ffts):
     fft_result = compute_fft(x)
     waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
-# Duration of the buffer in milliseconds
-block_duration_ms = (len(data_array) / sample_rate) * 1000
-
 # Plotting the waterfall spectrogram
-plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
+plt.figure(figsize=(12, 6))
+plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate / 2, sample_rate / 2, 0, collection_time * 1000],
+           cmap='viridis')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Time (ms)')
 plt.title('Spectrogram of Wireless Transmission')
@@ -72,7 +71,7 @@ plt.ylabel("Amplitude")
 plt.title("Time-Domain Signal")
 plt.legend()
 plt.grid()
-plt.xlim([0, duration * 1000])  # Set x-axis limit based on total time for 20 seconds
+plt.xlim([0, collection_time * 1000])  # Set x-axis limit based on total time for 20 seconds
 plt.ylim([-2500, 2500])  # Adjust y-axis limits for better visibility
 plt.tight_layout()
 plt.show()
