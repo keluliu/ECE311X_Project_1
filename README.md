@@ -1,60 +1,65 @@
-import adi
 import numpy as np
+import adi
 import matplotlib.pyplot as plt
 import time
 
-# Constants
-CARRIER_FREQUENCY = int(433.9e6)  # Carrier frequency in Hz
-SAMPLE_RATE = int(6e6)  # Sampling rate in Hz
-COLLECTION_DURATION = 30  # Total duration for data collection in seconds
-INTERMITTENT_INTERVAL = 15  # Time interval between transmissions in seconds
+sample_rate = 10e6
 
-# Create SDR instance
+center_freq = 2.4e9
+bandwidth = center_freq/4
+fft_size = 1024
+buff_size = 2**20
+num_ffts = buff_size//fft_size
+
 sdr = adi.Pluto("ip:192.168.2.1")
 
-# Configure SDR
-sdr.sample_rate = SAMPLE_RATE
-sdr.rx_rf_bandwidth = int(4e6)  # Set bandwidth to 4 MHz
-sdr.rx_lo = CARRIER_FREQUENCY  # Set LO frequency to 433.9 MHz
+sdr.sample_rate = int(sample_rate)
+sdr.rx_rf_bandwidth = int(bandwidth)
+sdr.rx_lo = int(center_freq)
+sdr.rx_buffer_size = buff_size
 
-# Print out the configured properties to verify
-print(f"Sample Rate: {sdr.sample_rate}")
-print(f"RX LO: {sdr.rx_lo}")
+samples = sdr.rx()
 
-# Initialize an empty list to store the collected data
-data_buffer = []
+waterfall_2darray = np.zeros((num_ffts, fft_size))
 
-# Collect data
-start_time = time.time()
-while time.time() - start_time < COLLECTION_DURATION:
-    current_time = time.time()
-    if int(current_time) % INTERMITTENT_INTERVAL == 0:
-        print(f"Collecting data at {time.ctime(current_time)}...")
-        x = sdr.rx()  # Receive data
-        data_buffer.extend(x)  # Append received data to buffer
-        time.sleep(INTERMITTENT_INTERVAL)  # Wait for the next interval
+def compute_fft(samples):
+    return np.fft.fftshift((np.fft.fft(samples)))
 
-# Convert collected data to a NumPy array
-data_array = np.array(data_buffer)
+for i in range(num_ffts):
+    x = samples[i*fft_size:(i+1)*fft_size]
+    fft_result = compute_fft(x)
+    waterfall_2darray[i, :] = np.log10(abs(fft_result))
+
+block_duration_ms = (buff_size / sample_rate) * 1000
+
+plt.imshow(waterfall_2darray, aspect='auto', extent = [-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
+plt.xlabel('Frequency (Hz)')
+plt.ylabel('Time (ms)')
+plt.title('Spectrogram')
+plt.colorbar(label='Magnitude')
+plt.show()
 
 # Define time axis
-time_axis = np.arange(len(data_array)) / SAMPLE_RATE * 1000  # in ms
+time_axis = np.arange(len(samples)) / sample_rate * 1000
 
 # Plot time-domain signal with separate subplots
-plt.figure(figsize=(12, 6))
+plt.figure(figsize=(12, 8))
 
 # Plot Real Part
-plt.plot(time_axis, data_array.real, label="Real", color="blue")
-# Plot Imaginary Part
-plt.plot(time_axis, data_array.imag, label="Imaginary", color="orange")
-
+plt.subplot(2, 1, 1)
+plt.plot(time_axis, samples.real, label="Real", color="blue")
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
-plt.title("Time-Domain Signal")
+plt.title("Time-Domain Signal (Real Part)")
 plt.legend()
-plt.grid()
-plt.xlim([0, 30])  # Set x-axis limit to focus on the desired time range
-plt.ylim([-2500, 2500])  # Adjust y-axis limits as needed for visibility
+
+# Plot Imaginary Part
+plt.subplot(2, 1, 2)
+plt.plot(time_axis, samples.imag, label="Imaginary", color="orange")
+plt.xlabel("Time (ms)")
+plt.ylabel("Amplitude")
+plt.title("Time-Domain Signal (Imaginary Part)")
+plt.legend()
 
 # Show the plot
 plt.tight_layout()
