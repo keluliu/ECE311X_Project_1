@@ -2,12 +2,14 @@ import adi
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from scipy import signal
 
 # Constants
 CARRIER_FREQUENCY = int(433.9e6)  # Carrier frequency in Hz
 SAMPLE_RATE = int(6e6)  # Sampling rate in Hz
 COLLECTION_DURATION = 30  # Total duration for data collection in seconds
 INTERMITTENT_INTERVAL = 15  # Time interval between transmissions in seconds
+FFT_SIZE = 1024  # Size of FFT for spectrogram
 
 # Create SDR instance
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -40,14 +42,10 @@ data_array = np.array(data_buffer)
 # Define time axis
 time_axis = np.arange(len(data_array)) / SAMPLE_RATE * 1000  # in ms
 
-# Plot time-domain signal with separate subplots
+# Plot time-domain signal
 plt.figure(figsize=(12, 6))
-
-# Plot Real Part
-plt.plot(time_axis, data_array.real, label="Real", color="blue")
-# Plot Imaginary Part
-plt.plot(time_axis, data_array.imag, label="Imaginary", color="orange")
-
+plt.plot(time_axis, data_array.real, label="Real", color="blue", alpha=0.5)
+plt.plot(time_axis, data_array.imag, label="Imaginary", color="orange", alpha=0.5)
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
 plt.title("Time-Domain Signal")
@@ -55,7 +53,19 @@ plt.legend()
 plt.grid()
 plt.xlim([0, 30])  # Set x-axis limit to focus on the desired time range
 plt.ylim([-2500, 2500])  # Adjust y-axis limits as needed for visibility
-
-# Show the plot
 plt.tight_layout()
 plt.show()
+
+# Generate Spectrogram
+frequencies, times, Sxx = signal.spectrogram(data_array, fs=SAMPLE_RATE, nperseg=FFT_SIZE)
+
+# Plot the Spectrogram
+plt.figure(figsize=(12, 6))
+plt.pcolormesh(times, frequencies / 1e6, 10 * np.log10(Sxx), shading='gouraud')
+plt.ylabel('Frequency [MHz]')
+plt.xlabel('Time [s]')
+plt.title('Spectrogram of Wireless Transmission')
+plt.colorbar(label='Intensity [dB]')
+plt.ylim([0, 2])  # Limit frequency range for visibility, adjust as needed
+plt.show()
+
