@@ -8,8 +8,9 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 10_000_000  # Set a manageable buffer size
+buff_size = 2**20  # Buffer size for receiving samples
 collection_time = 20  # Total collection time in seconds
+samples_per_receive = int(sample_rate)  # Samples to receive per iteration
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -19,7 +20,7 @@ sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
 sdr.rx_lo = int(center_freq)
 
-# Calculate total samples for 20 seconds
+# Calculate total samples for the specified collection time
 total_samples_needed = int(sample_rate * collection_time)  # Total samples for 20 seconds
 data_buffer = []
 
@@ -28,12 +29,15 @@ print("Collecting data for 20 seconds...")
 # Collect data in chunks
 start_time = time.time()
 while len(data_buffer) < total_samples_needed:
-    # Collect a portion of data each time
-    samples = sdr.rx()  # Receive data
-    data_buffer.extend(samples)  # Append received data to buffer
-
-    # Print status every few seconds
-    if len(data_buffer) % (sample_rate * 1) < fft_size:
+    # Receive a chunk of samples
+    samples = sdr.rx()
+    if samples is not None:
+        data_buffer.extend(samples)  # Append received data to buffer
+    else:
+        print("No samples received. Check SDR connection.")
+        
+    # Print status every second
+    if len(data_buffer) % samples_per_receive < fft_size:
         elapsed_time = time.time() - start_time
         print(f"Collected {len(data_buffer)} samples (Elapsed Time: {elapsed_time:.2f}s)")
 
