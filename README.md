@@ -21,14 +21,14 @@ sdr.rx_lo = int(center_freq)
 
 # Initialize an empty list to store the collected data
 data_buffer = []
-
-print("Collecting data for 20 seconds...")
 start_time = time.time()
+
 # Collect data for the specified duration
+print("Collecting data for 20 seconds...")
 while (time.time() - start_time) < collection_time:
     samples = sdr.rx()  # Receive data
     if samples is not None:
-        data_buffer.extend(samples[:chunk_size])  # Append received data to buffer, limit to chunk_size
+        data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
         print(f"Collected {len(samples)} samples, Total collected: {len(data_buffer)}")
     else:
         print("No samples received. Check SDR connection.")
