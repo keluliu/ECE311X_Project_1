@@ -9,7 +9,7 @@ center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
 total_duration = 20  # Desired duration for data collection in seconds
-chunk_size = 10_000  # Number of samples to collect in each chunk
+chunk_size = 10_000_000  # Number of samples to collect in each chunk
 
 # Calculate total samples needed for the specified duration
 total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
