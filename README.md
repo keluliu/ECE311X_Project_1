@@ -28,9 +28,10 @@ print("Collecting data for 20 seconds...")
 # Collect data in chunks to avoid blocking
 start_time = time.time()
 while len(data_buffer) < total_samples_needed:
-    # Adjust the number of samples to receive per call
+    # Receive data
     samples = sdr.rx()  # Receive data
     data_buffer.extend(samples)  # Append received data to buffer
+    print(f"Collected {len(data_buffer)} samples")  # Print the number of collected samples
 
     # Check elapsed time
     elapsed_time = time.time() - start_time
@@ -39,6 +40,7 @@ while len(data_buffer) < total_samples_needed:
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
+print(f"Total collected samples: {len(data_array)}")  # Print the total samples collected
 
 # Prepare a 2D array to hold FFT results
 num_ffts = len(data_array) // fft_size  # Update number of FFTs based on collected data length
@@ -52,7 +54,7 @@ def compute_fft(samples):
 for i in range(num_ffts):
     x = data_array[i * fft_size:(i + 1) * fft_size]
     fft_result = compute_fft(x)
-    waterfall_2darray[i, :] = np.log10(abs(fft_result))
+    waterfall_2darray[i, :] = np.log10(abs(fft_result) + 1e-10)  # Avoid log(0) issues
 
 # Plotting the waterfall spectrogram
 plt.figure(figsize=(12, 6))
