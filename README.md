@@ -8,8 +8,12 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-chunk_size = 4096  # Number of samples to collect per chunk
-collection_time = 20  # Total collection time in seconds
+total_duration = 20  # Desired duration for data collection in seconds
+chunk_size = 10_000  # Number of samples to collect in each chunk
+
+# Calculate total samples needed for the specified duration
+total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
+data_buffer = []
 
 # Create an instance of the Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")
@@ -17,21 +21,27 @@ sdr = adi.Pluto("ip:192.168.2.1")
 # Configure the SDR
 sdr.sample_rate = int(sample_rate)
 sdr.rx_rf_bandwidth = int(bandwidth)
-sdr.rx_lo = int(center_freq)
+sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
 
-# Initialize an empty list to store the collected data
-data_buffer = []
+# Start collecting data
+print("Collecting data...")
 start_time = time.time()
-
-# Collect data for the specified duration
-print("Collecting data for 20 seconds...")
-while (time.time() - start_time) < collection_time:
-    samples = sdr.rx()  # Receive data
-    if samples is not None:
+while len(data_buffer) < total_samples_needed:
+    try:
+        # Receive a chunk of samples
+        samples = sdr.rx()  # Receive data
         data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
-        print(f"Collected {len(samples)} samples, Total collected: {len(data_buffer)}")
-    else:
-        print("No samples received. Check SDR connection.")
+        elapsed_time = time.time() - start_time
+        print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
+        
+        # If we are close to the total samples needed, break the loop
+        if len(data_buffer) >= total_samples_needed:
+            break
+            
+        time.sleep(0.1)  # Small delay to allow for buffer filling
+    except Exception as e:
+        print(f"Error collecting data: {e}")
+        break
 
 # Convert collected data to a NumPy array
 data_array = np.array(data_buffer)
@@ -48,12 +58,13 @@ def compute_fft(samples):
 for i in range(num_ffts):
     x = data_array[i * fft_size:(i + 1) * fft_size]
     fft_result = compute_fft(x)
-    waterfall_2darray[i, :] = np.log10(abs(fft_result) + 1e-10)  # Avoid log(0)
+    waterfall_2darray[i, :] = np.log10(abs(fft_result))
+
+# Duration of the buffer in milliseconds
+block_duration_ms = (len(data_array) / sample_rate) * 1000
 
 # Plotting the waterfall spectrogram
-plt.figure(figsize=(12, 6))
-plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate / 2, sample_rate / 2, 0, collection_time * 1000],
-           cmap='viridis')
+plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Time (ms)')
 plt.title('Spectrogram of Wireless Transmission')
@@ -73,7 +84,7 @@ plt.ylabel("Amplitude")
 plt.title("Time-Domain Signal")
 plt.legend()
 plt.grid()
-plt.xlim([0, collection_time * 1000])  # Set x-axis limit based on total time for 20 seconds
+plt.xlim([0, total_duration * 1000])  # Set x-axis limit based on total time for 20 seconds
 plt.ylim([-2500, 2500])  # Adjust y-axis limits for better visibility
 plt.tight_layout()
 plt.show()
