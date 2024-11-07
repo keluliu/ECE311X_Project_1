@@ -8,7 +8,7 @@ sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
-buff_size = 2**20  # Buffer size for receiving samples
+buff_size = 15 * 2**20  # Increased buffer size to 15 times the original
 collection_time = 20  # Total collection time in seconds
 
 # Create an instance of the Pluto SDR
