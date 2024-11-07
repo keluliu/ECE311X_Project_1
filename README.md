@@ -9,10 +9,10 @@ center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
 fft_size = 1024  # Size of each FFT
 total_duration = 20  # Desired duration for data collection in seconds
-chunk_size = 10_000_000  # Number of samples to collect in each chunk
 
 # Calculate total samples needed for the specified duration
 total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
+chunk_size = 10_000_000  # Number of samples to collect in each chunk
 data_buffer = []
 
 # Create an instance of the Pluto SDR
@@ -26,19 +26,26 @@ sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
 # Start collecting data
 print("Collecting data...")
 start_time = time.time()
+
 while len(data_buffer) < total_samples_needed:
     try:
         # Receive a chunk of samples
         samples = sdr.rx()  # Receive data
-        data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
+        if samples is not None:
+            # Append received data to buffer, taking care not to exceed total_samples_needed
+            data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
+            if len(data_buffer) >= total_samples_needed:
+                break  # Exit loop if we've collected enough data
+        else:
+            print("No samples received. Check SDR connection.")
+        
         elapsed_time = time.time() - start_time
         print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
-        
-        # If we are close to the total samples needed, break the loop
-        if len(data_buffer) >= total_samples_needed:
+
+        # Check if the elapsed time exceeds the total duration
+        if elapsed_time >= total_duration:
             break
-            
-        time.sleep(0.1)  # Small delay to allow for buffer filling
+
     except Exception as e:
         print(f"Error collecting data: {e}")
         break
