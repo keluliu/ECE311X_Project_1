@@ -8,13 +8,8 @@ from scipy import signal
 sample_rate = 10e6  # Sampling rate in Hz
 center_freq = 433e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
-fft_size = 8192  # Size of each FFT for higher frequency resolution
+fft_size = 8192  # Size of each FFT for better frequency resolution
 total_duration = 20  # Desired duration for data collection in seconds
-overlap = 0.5  # 50% overlap for better time resolution
-chunk_size = 2**20  # Number of samples to collect in each chunk
-
-# Calculate total samples needed for the specified duration
-total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
 data_buffer = []
 
 # Create an instance of the Pluto SDR
@@ -29,21 +24,24 @@ sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
 print("Collecting data for 20 seconds...")
 start_time = time.time()
 
-while len(data_buffer) < total_samples_needed:
+# Collect samples until the desired duration is reached
+while True:
     try:
-        # Receive samples and append to the buffer
+        # Receive data
         samples = sdr.rx()  # Receive data
         data_buffer.extend(samples)  # Append received data to buffer
-        elapsed_time = time.time() - start_time
         
+        elapsed_time = time.time() - start_time
         # Log progress
-        print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
 
-        # Check if we have collected enough samples
-        if len(data_buffer) >= total_samples_needed:
+        # Check if we've reached the total duration
+        if elapsed_time >= total_duration:
             break
-            
-        time.sleep(0.1)  # Small delay to allow for buffer filling
+
+        # Sleep briefly to avoid overwhelming the buffer
+        time.sleep(0.1)
+        
     except Exception as e:
         print(f"Error collecting data: {e}")
         break
@@ -52,26 +50,22 @@ while len(data_buffer) < total_samples_needed:
 data_array = np.array(data_buffer)
 
 # Prepare a 2D array to hold FFT results
-num_ffts = int(len(data_array) / (fft_size * (1 - overlap)))  # Calculate number of FFTs with overlap
+num_ffts = len(data_array) // fft_size  # Calculate number of FFTs based on collected data length
 waterfall_2darray = np.zeros((num_ffts, fft_size))
 
 # Function to compute FFT and shift the zero frequency component to the center
 def compute_fft(samples):
     return np.fft.fftshift(np.fft.fft(samples))
 
-# Calculate FFTs for the received samples with overlap
+# Calculate FFTs for the received samples
 for i in range(num_ffts):
-    start_index = int(i * fft_size * (1 - overlap))
-    x = data_array[start_index:start_index + fft_size]
+    x = data_array[i * fft_size:(i + 1) * fft_size]
     if len(x) == fft_size:  # Ensure we have enough samples for the FFT
         fft_result = compute_fft(x)
         waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
-# Duration of the buffer in milliseconds
-block_duration_ms = (len(data_array) / sample_rate) * 1000
-
 # Plotting the waterfall spectrogram
-plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate / 2, sample_rate / 2, 0, block_duration_ms], cmap='viridis')
+plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate/2, sample_rate/2, 0, total_duration * 1000], cmap='viridis')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Time (ms)')
 plt.title('Spectrogram of Wireless Transmission')
