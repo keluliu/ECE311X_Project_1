@@ -4,13 +4,12 @@ import matplotlib.pyplot as plt
 import time
 
 # Define parameters
-sample_rate = 10e6  # Sampling rate in Hz
+sample_rate = 0.521e6  # Sampling rate in Hz
 center_freq = 433.9e6  # Center frequency set to 433.9 MHz
 bandwidth = center_freq / 4  # Bandwidth calculated as a quarter of the center frequency
-fft_size = 1024  # Size of each FFT
-total_duration = 20  # Desired duration for data collection in seconds
-chunk_size = 1_000_000  # Number of samples to collect in each chunk
-subsample_factor = 10  # Factor to reduce the number of samples plotted
+fft_size = 8192  # Size of each FFT
+total_duration = 15  # Desired duration for data collection in seconds
+chunk_size = 2**20  # Number of samples to collect in each chunk
 
 # Calculate total samples needed for the specified duration
 total_samples_needed = int(sample_rate * total_duration)  # Total samples for 20 seconds
@@ -27,20 +26,19 @@ sdr.rx_lo = int(center_freq)  # Set LO frequency to 433.9 MHz
 # Start collecting data
 print("Collecting data...")
 start_time = time.time()
-
 while len(data_buffer) < total_samples_needed:
     try:
         # Receive a chunk of samples
         samples = sdr.rx()  # Receive data
-        if samples is not None:
-            data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
-            print(f"Collected {len(data_buffer)} samples out of {total_samples_needed}")
-        else:
-            print("No samples received. Check SDR connection.")
-
+        data_buffer.extend(samples[:chunk_size])  # Append received data to buffer
         elapsed_time = time.time() - start_time
-        if elapsed_time >= total_duration:
-            break  # Exit loop if we've collected enough data
+        print(f"Collected {len(data_buffer)} samples out of {total_samples_needed} (Elapsed time: {elapsed_time:.2f} seconds)")
+        
+        # If we are close to the total samples needed, break the loop
+        if len(data_buffer) >= total_samples_needed:
+            break
+            
+        time.sleep(0.1)  # Small delay to allow for buffer filling
     except Exception as e:
         print(f"Error collecting data: {e}")
         break
@@ -62,13 +60,11 @@ for i in range(num_ffts):
     fft_result = compute_fft(x)
     waterfall_2darray[i, :] = np.log10(abs(fft_result))
 
-# Downsample the waterfall data for plotting
-downsampled_waterfall = waterfall_2darray[::subsample_factor]
+# Duration of the buffer in milliseconds
+block_duration_ms = (len(data_array) / sample_rate) * 1000
 
 # Plotting the waterfall spectrogram
-plt.figure(figsize=(12, 6))
-plt.imshow(downsampled_waterfall, aspect='auto', extent=[-sample_rate / 2, sample_rate / 2, 0, (len(data_array) / sample_rate) * 1000],
-           cmap='viridis')
+plt.imshow(waterfall_2darray, aspect='auto', extent=[-sample_rate/2, sample_rate/2, 0, block_duration_ms], cmap='viridis')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Time (ms)')
 plt.title('Spectrogram of Wireless Transmission')
@@ -78,13 +74,10 @@ plt.show()
 # Define time axis for the time-domain signal
 time_axis = np.arange(len(data_array)) / sample_rate * 1000  # in ms
 
-# Subsample data for time-domain signal plotting
-subsampled_data_array = data_array[::subsample_factor]  # Downsample the time-domain signal
-
 # Plot time-domain signal with both Real and Imaginary parts in the same subplot
 plt.figure(figsize=(12, 6))
-plt.plot(time_axis[::subsample_factor], subsampled_data_array.real, label="Real", color="blue")  # Plot Real part
-plt.plot(time_axis[::subsample_factor], subsampled_data_array.imag, label="Imaginary", color="orange")  # Plot Imaginary part
+plt.plot(time_axis, data_array.real, label="Real", color="blue")  # Plot Real part
+plt.plot(time_axis, data_array.imag, label="Imaginary", color="orange")  # Plot Imaginary part
 
 plt.xlabel("Time (ms)")
 plt.ylabel("Amplitude")
