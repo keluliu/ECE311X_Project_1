@@ -83,3 +83,8 @@ if __name__ == "__main__":
     generate_spectrogram(iq_data, sampling_rate, fft_size)
     time_domain_analysis(iq_data)
     plot_constellation(iq_data)
+
+
+Data capture complete.
+/home/sdr/Documents/ECE331X/ECE331X_Project_1/spectrogram.py:56: UserWarning: Input data is complex, switching to return_onesided=False
+  f, t, Sxx = spectrogram(iq_data, fs=sampling_rate, nperseg=fft_size)
