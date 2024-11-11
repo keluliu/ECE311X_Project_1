@@ -1,34 +1,54 @@
-import numpy as np
+# 2023.06.08
+# Source: https://github.com/analogdevicesinc/pyadi-iio/blob/master/examples/pluto.py
+# check address of the Pluto device "iio_info -s"
+
 import adi
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import signal
+import time
 
-sample_rate = 1e6  # Hz
-center_freq = 2.4e9  # Hz
-num_samps = 10000
+# Create radio
+# sdr = adi.Pluto () # Wersja na komputer Win10 MSI
+# sdr = adi.Pluto ( uri = "usb:4.7.5" ) # Wersja z Libiio release >= v0.25 na MW50-SV0
+sdr = adi.Pluto ( uri = "usb:1.5.5" ) # Wersja z Libiio release >= v0.25 na RPi400
+# sdr = adi.Pluto ('ip:192.168.2.1') # Wersja na komputer Win11 GO3 
 
-sdr = adi.Pluto("ip:192.168.2.1")
-sdr.gain_control_mode_chan0 = "manual"
-sdr.rx_hardwaregain_chan0 = 70.0  # dB
-sdr.rx_lo = int(center_freq)
-sdr.sample_rate = int(sample_rate)
-sdr.rx_rf_bandwidth = int(sample_rate)
-sdr.rx_buffer_size = num_samps
+# Configure properties
+sdr.rx_rf_bandwidth = 4000000
+sdr.rx_lo = 2000000000
+sdr.tx_lo = 2000000000
+sdr.tx_cyclic_buffer = True
+sdr.tx_hardwaregain_chan0 = -30
+sdr.gain_control_mode_chan0 = "slow_attack"
 
-x = sdr.rx()  # receive samples off Pluto
+# Read properties
+print ("RX LO %s" % (sdr.rx_lo) )
 
-fft_size = 1024
-num_rows = len(x) // fft_size
-spectrogram = np.zeros((num_rows, fft_size))
-for i in range(num_rows):
-    spectrogram[i, :] = 10 * np.log10(
-        np.abs(np.fft.fftshift(np.fft.fft(x[i * fft_size : (i + 1) * fft_size]))) ** 2
-    )
+# Create a sinewave waveform
+fs = int ( sdr.sample_rate )
+N = 1024
+fc = int ( 3000000 / ( fs / N ) ) * ( fs / N )
+ts = 1 / float ( fs )
+t = np.arange ( 0 , N * ts , ts )
+i = np.cos ( 2 * np.pi * t * fc ) * 2 ** 14
+q = np.sin ( 2 * np.pi * t * fc ) * 2 ** 14
+iq = i + 1j * q
 
-plt.imshow(
-    spectrogram,
-    aspect="auto",
-    extent=[sample_rate / -2 / 1e6, sample_rate / 2 / 1e6, len(x) / sample_rate, 0],
-)
-plt.xlabel("Frequency [MHz]")
-plt.ylabel("Time [s]")
-plt.show()
+# Send data
+sdr.tx ( iq )
+
+# Collect data
+for r in range ( 20 ) :
+    x = sdr.rx ()
+    f, Pxx_den = signal.periodogram ( x , fs )
+    plt.clf ()
+    plt.semilogy ( f , Pxx_den )
+    plt.ylim ( [1e-7 , 1e2] )
+    plt.xlabel ( "frequency [Hz]" )
+    plt.ylabel ( "PSD [V**2/Hz]" )
+    plt.draw ()
+    plt.pause ( 0.05 )
+    time.sleep ( 0.1 )
+
+plt.show ()
