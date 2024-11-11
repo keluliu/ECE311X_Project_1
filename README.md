@@ -13,17 +13,18 @@ time_duration = 30          # Duration in seconds for capturing data
 sdr = adi.Pluto("ip:192.168.2.1")  # Adjust IP if needed
 sdr.rx_rf_bandwidth = int(sampling_rate)
 sdr.rx_lo = int(center_frequency)
-sdr.rx_buffer_size = 1024  # Adjust buffer size as needed for your analysis
+sdr.rx_buffer_size = 4096  # Larger buffer size to capture more samples in one call
 
 # Capture I/Q data
 def capture_data(duration, sdr, sampling_rate):
     num_samples = int(sampling_rate * duration)
     iq_data = []
-    
+
     print("Capturing data...")
     while len(iq_data) < num_samples:
         samples = sdr.rx()  # Fetch samples from Pluto SDR
         iq_data.extend(samples)
+        print(f"Captured {len(iq_data)} / {num_samples} samples")
     
     iq_data = np.array(iq_data[:num_samples])  # Truncate to desired sample size
     print("Data capture complete.")
