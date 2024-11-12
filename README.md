@@ -5,31 +5,33 @@ import adi  # Importing pyadi-iio for ADALM Pluto support
 
 # Pluto SDR Configuration
 center_frequency = 433.9e6  # Center frequency in Hz (433.9 MHz)
-sampling_rate = 1e6         # Sampling rate in Hz
-fft_size = 512              # FFT size for spectrogram
-time_duration = 10          # Duration in seconds for capturing data
+sampling_rate = 500e3       # Reduced Sampling rate in Hz to reduce data load
+chunk_duration = 5          # Duration in seconds for each chunk of data
+total_duration = 30         # Total duration in seconds for capturing data
+fft_size = 256              # Reduced FFT size for memory efficiency
+buffer_size = 1024          # Smaller buffer size for capturing more samples
 
 # Initialize Pluto SDR
 sdr = adi.Pluto("ip:192.168.2.1")  # Adjust IP if needed
 sdr.rx_rf_bandwidth = int(sampling_rate)
 sdr.rx_lo = int(center_frequency)
-sdr.rx_buffer_size = 4096  # Buffer size for capturing more samples
+sdr.rx_buffer_size = buffer_size
 
-# Capture I/Q data
-def capture_data(duration, sdr, sampling_rate):
-    num_samples = int(sampling_rate * duration)
-    iq_data = np.zeros(num_samples, dtype='complex64')
-    captured_samples = 0
+# Function to capture data in chunks
+def capture_data_in_chunks(total_duration, chunk_duration, sdr, sampling_rate):
+    num_chunks = total_duration // chunk_duration
+    chunk_samples = int(sampling_rate * chunk_duration)
+    captured_data = []
 
-    print("Capturing data...")
-    while captured_samples < num_samples:
-        samples = sdr.rx()  # Fetch samples from Pluto SDR
-        remaining_samples = num_samples - captured_samples
-        samples_to_store = min(len(samples), remaining_samples)
-        iq_data[captured_samples:captured_samples + samples_to_store] = samples[:samples_to_store]
-        captured_samples += samples_to_store
-        print(f"Captured {captured_samples} / {num_samples} samples")
-    
+    print("Capturing data in chunks...")
+    for i in range(num_chunks):
+        print(f"Capturing chunk {i + 1} of {num_chunks}...")
+        samples = sdr.rx()
+        if len(samples) > chunk_samples:
+            samples = samples[:chunk_samples]  # Limit to chunk size
+        captured_data.extend(samples)
+
+    iq_data = np.array(captured_data, dtype='complex64')
     print("Data capture complete.")
     return iq_data
 
@@ -48,7 +50,7 @@ def generate_spectrogram(iq_data, sampling_rate, fft_size):
 def time_domain_analysis(iq_data):
     magnitude = np.abs(iq_data)
     phase = np.angle(iq_data)
-    
+
     # Plot magnitude
     plt.figure()
     plt.plot(magnitude)
@@ -57,7 +59,7 @@ def time_domain_analysis(iq_data):
     plt.ylabel('Magnitude')
     plt.grid()
     plt.show()
-    
+
     # Plot phase
     plt.figure()
     plt.plot(phase)
@@ -79,9 +81,9 @@ def plot_constellation(iq_data):
 
 # Main Execution
 if __name__ == "__main__":
-    # Capture data from Pluto SDR
-    iq_data = capture_data(time_duration, sdr, sampling_rate)
-    
+    # Capture data in smaller chunks from Pluto SDR
+    iq_data = capture_data_in_chunks(total_duration, chunk_duration, sdr, sampling_rate)
+
     # Process and visualize data
     generate_spectrogram(iq_data, sampling_rate, fft_size)
     time_domain_analysis(iq_data)
