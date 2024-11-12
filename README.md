@@ -1,19 +1,38 @@
-sdr@ece331x:~$ /bin/python3 /home/sdr/Documents/ECE331X/ECE331X_Project_1/spectrogram.py
-Traceback (most recent call last):
-  File "/home/sdr/Documents/ECE331X/ECE331X_Project_1/spectrogram.py", line 105, in <module>
-    sdr.rx_lo = int(center_freq)  # Set center frequency
-  File "/home/sdr/.local/lib/python3.10/site-packages/adi/ad936x.py", line 197, in rx_lo
-    self._set_iio_attr_int("altvoltage0", "frequency", True, value)
-  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 94, in _set_iio_attr_int
-    self._set_iio_attr(channel_name, attr_name, output, value, _ctrl)
-  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 71, in _set_iio_attr
-    raise ex
-  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 69, in _set_iio_attr
-    channel.attrs[attr_name].value = str(value)
-  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 704, in <lambda>
-    lambda self, x: self._write(x),
-  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 736, in _write
-    _c_write_attr(self._channel, self._name_ascii, value.encode("ascii"))
-  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 62, in _check_negative
-    raise OSError(-result, _strerror(-result))
-OSError: [Errno 22] Invalid argument
+# Import necessary libraries
+import numpy as np
+import adi  # ADI library for Pluto SDR
+import matplotlib.pyplot as plt
+import time
+
+# SDR Configuration
+sample_rate = 1e6  # Sample rate in Hz
+center_freq = 100e6  # Center frequency in Hz
+capture_duration = 5  # Duration of capture in seconds
+
+# Initialize the Pluto SDR
+sdr = adi.Pluto("ip:192.168.2.1")  # Modify IP if necessary
+sdr.rx_lo = int(center_freq)  # Set center frequency
+sdr.sample_rate = int(sample_rate)  # Set sample rate
+sdr.rx_rf_bandwidth = int(sample_rate)  # Set receiver bandwidth
+sdr.rx_buffer_size = int(sample_rate * capture_duration)  # Set buffer size based on capture duration
+
+# Capture data
+print("Starting data capture...")
+time.sleep(1)  # Allow SDR to stabilize
+samples = sdr.rx()  # Receive samples from SDR
+print("Data capture complete.")
+
+# Time axis for plotting
+time_axis = np.arange(len(samples)) / sample_rate  # Calculate time in seconds
+
+# Plot time-domain signal (both I and Q components)
+plt.figure(figsize=(12, 6))
+plt.plot(time_axis, np.real(samples), label="In-phase (I)", color="blue")
+plt.plot(time_axis, np.imag(samples), label="Quadrature (Q)", color="orange", alpha=0.7)
+plt.xlabel("Time [s]")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.title(f"Time Domain Signal (Capture Duration = {capture_duration}s)")
+plt.grid()
+plt.tight_layout()
+plt.show()
