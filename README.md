@@ -72,23 +72,29 @@ plt.show()
 # Define time axis for time-domain plot
 time_axis = np.arange(len(all_samples)) / sample_rate * 1000
 
-# Plot time-domain signal with separate subplots
+# Downsample data for plotting (reduce data points to prevent memory issues)
+downsample_factor = 100  # Plot every 100th sample to reduce memory usage
+downsampled_time_axis = time_axis[::downsample_factor]
+downsampled_magnitude = np.abs(all_samples)[::downsample_factor]
+downsampled_phase = np.angle(all_samples)[::downsample_factor]
+
+# Plot time-domain signal with magnitude and phase (using downsampled data)
 plt.figure(figsize=(12, 8))
 
-# Plot Real Part
+# Plot Magnitude
 plt.subplot(2, 1, 1)
-plt.plot(time_axis, all_samples.real, label="Real", color="blue")
+plt.plot(downsampled_time_axis, downsampled_magnitude, label="Magnitude", color="blue")
 plt.xlabel("Time (ms)")
-plt.ylabel("Amplitude")
-plt.title("Time-Domain Signal (Real Part) for 25 Seconds of Data")
+plt.ylabel("Magnitude")
+plt.title("Time-Domain Signal (Magnitude) for 25 Seconds of Data (Downsampled)")
 plt.legend()
 
-# Plot Imaginary Part
+# Plot Phase
 plt.subplot(2, 1, 2)
-plt.plot(time_axis, all_samples.imag, label="Imaginary", color="orange")
+plt.plot(downsampled_time_axis, downsampled_phase, label="Phase", color="orange")
 plt.xlabel("Time (ms)")
-plt.ylabel("Amplitude")
-plt.title("Time-Domain Signal (Imaginary Part) for 25 Seconds of Data")
+plt.ylabel("Phase (radians)")
+plt.title("Time-Domain Signal (Phase) for 25 Seconds of Data (Downsampled)")
 plt.legend()
 
 # Show the plot
