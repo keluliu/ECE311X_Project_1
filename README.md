@@ -1,32 +1,19 @@
-import adi  # Analog Devices ADI Python library for PlutoSDR
-import numpy as np
-import time
-
-# Initialize PlutoSDR
-sdr = adi.Pluto("ip:192.168.2.1")
-
-# SDR Configuration
-sample_rate = 1e6  # Hz
-center_freq = 100e6  # Center frequency in Hz
-duration = 10  # Duration to receive data in seconds
-
-# SDR Settings
-sdr.rx_lo = int(center_freq)  # Set center frequency
-sdr.sample_rate = int(sample_rate)  # Set sample rate
-sdr.rx_rf_bandwidth = int(sample_rate)  # Set bandwidth
-sdr.rx_buffer_size = 1024  # Set buffer size (number of samples per read)
-
-# Start receiving data
-start_time = time.time()
-all_data = []  # List to store all received data
-
-print("Receiving data...")
-while time.time() - start_time < duration:
-    samples = sdr.rx()  # Receive samples
-    all_data.append(samples)
-
-# Convert list of arrays to a single array
-all_data = np.concatenate(all_data)
-
-print("Data received for", duration, "seconds.")
-print("Total samples received:", len(all_data))
+sdr@ece331x:~$ /bin/python3 /home/sdr/Documents/ECE331X/ECE331X_Project_1/spectrogram.py
+Traceback (most recent call last):
+  File "/home/sdr/Documents/ECE331X/ECE331X_Project_1/spectrogram.py", line 105, in <module>
+    sdr.rx_lo = int(center_freq)  # Set center frequency
+  File "/home/sdr/.local/lib/python3.10/site-packages/adi/ad936x.py", line 197, in rx_lo
+    self._set_iio_attr_int("altvoltage0", "frequency", True, value)
+  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 94, in _set_iio_attr_int
+    self._set_iio_attr(channel_name, attr_name, output, value, _ctrl)
+  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 71, in _set_iio_attr
+    raise ex
+  File "/home/sdr/.local/lib/python3.10/site-packages/adi/attribute.py", line 69, in _set_iio_attr
+    channel.attrs[attr_name].value = str(value)
+  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 704, in <lambda>
+    lambda self, x: self._write(x),
+  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 736, in _write
+    _c_write_attr(self._channel, self._name_ascii, value.encode("ascii"))
+  File "/home/sdr/.local/lib/python3.10/site-packages/iio.py", line 62, in _check_negative
+    raise OSError(-result, _strerror(-result))
+OSError: [Errno 22] Invalid argument
