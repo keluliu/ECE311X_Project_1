@@ -75,7 +75,13 @@ time_axis = np.arange(len(all_samples)) / sample_rate * 1000
 # Downsample data for plotting (reduce data points to prevent memory issues)
 downsample_factor = 100  # Plot every 100th sample to reduce memory usage
 downsampled_time_axis = time_axis[::downsample_factor]
-downsampled_magnitude = np.abs(all_samples)[::downsample_factor]
+downsampled_samples_real = all_samples.real[::downsample_factor]
+downsampled_samples_imag = all_samples.imag[::downsample_factor]
+
+# Calculate magnitude using arithmetic operations (instead of np.abs)
+downsampled_magnitude = np.sqrt(downsampled_samples_real**2 + downsampled_samples_imag**2)
+
+# Calculate phase
 downsampled_phase = np.angle(all_samples)[::downsample_factor]
 
 # Plot time-domain signal with magnitude and phase (using downsampled data)
@@ -86,7 +92,7 @@ plt.subplot(2, 1, 1)
 plt.plot(downsampled_time_axis, downsampled_magnitude, label="Magnitude", color="blue")
 plt.xlabel("Time (ms)")
 plt.ylabel("Magnitude")
-plt.title("Time-Domain Signal (Magnitude) for 25 Seconds of Data (Downsampled)")
+plt.title("Time-Domain Signal (Magnitude) for 25 Seconds of Data (Downsampled, Arithmetic Calculation)")
 plt.legend()
 
 # Plot Phase
