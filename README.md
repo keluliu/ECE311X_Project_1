@@ -1,90 +1,94 @@
 import numpy as np
+import adi
 import matplotlib.pyplot as plt
-from scipy.signal import spectrogram
-import adi  # Importing pyadi-iio for ADALM Pluto support
-
-# Pluto SDR Configuration
-center_frequency = 433.9e6  # Center frequency in Hz (433.9 MHz)
-sampling_rate = 500e3       # Reduced Sampling rate in Hz to reduce data load
-chunk_duration = 5          # Duration in seconds for each chunk of data
-total_duration = 30         # Total duration in seconds for capturing data
-fft_size = 256              # Reduced FFT size for memory efficiency
-buffer_size = 1024          # Smaller buffer size for capturing more samples
+from scipy import signal
 
 # Initialize Pluto SDR
-sdr = adi.Pluto("ip:192.168.2.1")  # Adjust IP if needed
-sdr.rx_rf_bandwidth = int(sampling_rate)
-sdr.rx_lo = int(center_frequency)
-sdr.rx_buffer_size = buffer_size
+pluto = adi.Pluto('ip:192.168.2.1')
 
-# Function to capture data in chunks
-def capture_data_in_chunks(total_duration, chunk_duration, sdr, sampling_rate):
-    num_chunks = total_duration // chunk_duration
-    chunk_samples = int(sampling_rate * chunk_duration)
-    captured_data = []
+# Set up receiver parameters
+sample_rate = 1e6  # 1 MS/s
+center_freq = 433900000  # 433.9 MHz carrier frequency
+gain_db = 50  # Set gain in dB
+pluto.sample_rate = sample_rate
+pluto.rx_lo = int(center_freq)
+pluto.gain_control_mode_chan0 = 'slow_attack'
+pluto.rx_hardwaregain_chan0 = gain_db
 
-    print("Capturing data in chunks...")
-    for i in range(num_chunks):
-        print(f"Capturing chunk {i + 1} of {num_chunks}...")
-        samples = sdr.rx()
-        if len(samples) > chunk_samples:
-            samples = samples[:chunk_samples]  # Limit to chunk size
-        captured_data.extend(samples)
+# Configure continuous reception
+num_samps = int(sample_rate * 60)  # Collect data for 60 seconds
+pluto.rx_buffer_size = num_samps
 
-    iq_data = np.array(captured_data, dtype='complex64')
-    print("Data capture complete.")
-    return iq_data
+# Initialize arrays to store received samples
+time = np.arange(num_samps) / sample_rate
+samples = []
 
-# Generate Spectrogram
-def generate_spectrogram(iq_data, sampling_rate, fft_size):
-    f, t, Sxx = spectrogram(iq_data, fs=sampling_rate, nperseg=fft_size, return_onesided=False)
-    plt.figure()
-    plt.pcolormesh(t, f, 10 * np.log10(np.abs(Sxx) + 1e-12), shading='gouraud')  # Add small value to prevent log(0)
-    plt.colorbar(label='Intensity [dB]')
-    plt.ylabel('Frequency [Hz]')
-    plt.xlabel('Time [sec]')
-    plt.title('Spectrogram of 433.9 MHz Transmission')
+# Start receiving data
+print("Starting data collection...")
+for i in range(0, num_samps, pluto.rx_buffer_size):
+    buffer = pluto.rx()
+    samples.extend(buffer)
+
+# Generate spectrogram
+window = signal.hann(int(sample_rate))
+nperseg = 1024
+noverlap = 512
+freqs, times, spectrogram = signal.spectrogram(np.array(samples), fs=sample_rate, nperseg=nperseg, noverlap=noverlap, window=window)
+
+# Create spectrogram plot
+plt.figure(figsize=(12, 8))
+plt.imshow(spectrogram, aspect='auto', cmap='viridis', origin='lower')
+plt.xlabel('Time [s]')
+plt.ylabel('Frequency [Hz]')
+plt.title('Spectrogram of Wireless Thermometer Transmission')
+plt.colorbar(label='Power')
+plt.show()
+
+# Identify active transmission periods (you'll need to adjust these thresholds)
+threshold = np.max(spectrogram) * 0.1
+active_periods = []
+for i in range(len(times) - 1):
+    if spectrogram[i] > threshold and spectrogram[i+1] <= threshold:
+        active_periods.append((times[i], times[i+1]))
+
+print(f"Active transmission periods found: {active_periods}")
+
+# Isolate signal for each active period
+isolated_signals = []
+for start_time, end_time in active_periods:
+    idx_start = np.where(times >= start_time)[0][0]
+    idx_end = np.where(times < end_time)[-1] + 1
+    isolated_signal = samples[idx_start:idx_end]
+    isolated_signals.append(isolated_signal)
+
+# Plot magnitude and phase for each isolated signal
+for i, sig in enumerate(isolated_signals):
+    plt.figure(figsize=(10, 5))
+    plt.subplot(121)
+    plt.plot(sig)
+    plt.title(f'Magnitude of Signal {i+1}')
+    plt.xlabel('Sample')
+    plt.ylabel('Amplitude')
+    
+    plt.subplot(122)
+    plt.plot(np.unwrap(np.angle(sig)))
+    plt.title(f'Phase of Signal {i+1}')
+    plt.xlabel('Sample')
+    plt.ylabel('Phase (rad)')
+    plt.tight_layout()
     plt.show()
 
-# Generate Time-Domain Plots for Magnitude and Phase
-def time_domain_analysis(iq_data):
-    magnitude = np.abs(iq_data)
-    phase = np.angle(iq_data)
+# Determine modulation scheme (you'll need to analyze the plots)
+# Based on observations, determine if it's AM, FM, PSK, QPSK, etc.
 
-    # Plot magnitude
-    plt.figure()
-    plt.plot(magnitude)
-    plt.title('Time Domain Magnitude')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Magnitude')
-    plt.grid()
+# Generate signal constellation diagram
+for i, sig in enumerate(isolated_signals):
+    plt.figure(figsize=(8, 8))
+    plt.scatter(np.real(sig), np.imag(sig))
+    plt.title(f'Signal Constellation Diagram {i+1}')
+    plt.xlabel('In-phase')
+    plt.ylabel('Quadrature')
+    plt.tight_layout()
     plt.show()
 
-    # Plot phase
-    plt.figure()
-    plt.plot(phase)
-    plt.title('Time Domain Phase')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Phase (radians)')
-    plt.grid()
-    plt.show()
-
-# Generate Constellation Diagram
-def plot_constellation(iq_data):
-    plt.figure()
-    plt.scatter(iq_data.real, iq_data.imag, alpha=0.5)
-    plt.title('Constellation Diagram')
-    plt.xlabel('In-phase (I)')
-    plt.ylabel('Quadrature (Q)')
-    plt.grid()
-    plt.show()
-
-# Main Execution
-if __name__ == "__main__":
-    # Capture data in smaller chunks from Pluto SDR
-    iq_data = capture_data_in_chunks(total_duration, chunk_duration, sdr, sampling_rate)
-
-    # Process and visualize data
-    generate_spectrogram(iq_data, sampling_rate, fft_size)
-    time_domain_analysis(iq_data)
-    plot_constellation(iq_data)
+# Analyze constellation diagram to determine modulation scheme
