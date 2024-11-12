@@ -106,3 +106,13 @@ plt.legend()
 # Show the plot
 plt.tight_layout()
 plt.show()
+
+# Plot Constellation Diagram (I/Q Plane)
+plt.figure(figsize=(8, 8))
+plt.scatter(all_samples.real[::downsample_factor], all_samples.imag[::downsample_factor], s=1, alpha=0.6)
+plt.xlabel("In-phase (I)")
+plt.ylabel("Quadrature (Q)")
+plt.title("Constellation Diagram of Intercepted Signal (I/Q Plane)")
+plt.grid(True)
+plt.axis('equal')  # Ensure the scaling of x and y axes is equal
+plt.show()
