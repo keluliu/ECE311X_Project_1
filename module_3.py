@@ -59,12 +59,10 @@ avg_fft = np.mean(waterfall_2darray, axis=0)
 peak_index = np.argmax(avg_fft)
 freq_axis = np.linspace(-sample_rate / 2, sample_rate / 2, fft_size)
 freq_offset = freq_axis[peak_index]
-print(f"Estimated Frequency Offset: {freq_offset} Hz")
 
 # Adjust SDR center frequency to correct the offset
 corrected_center_freq = center_freq + freq_offset
 sdr.rx_lo = int(corrected_center_freq)
-print(f"Corrected Center Frequency: {corrected_center_freq} Hz")
 
 # Collect data again after frequency correction
 corrected_samples = []
