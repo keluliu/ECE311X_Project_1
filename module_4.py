@@ -32,8 +32,14 @@ all_samples = np.concatenate(all_samples)
 # Save raw I/Q samples to a file for offline processing
 np.save("bpsk_signal_raw.npy", all_samples)
 
-# Implementing a Digital Phase Locked Loop (DPLL) using a Costas Loop
-# Reference: https://pysdr.org/content/sync.html
+# Plotting the spectrogram of the collected data
+plt.figure(figsize=(10, 6))
+plt.specgram(all_samples, NFFT=1024, Fs=sample_rate, noverlap=512, cmap="viridis")
+plt.xlabel("Time (s)")
+plt.ylabel("Frequency (Hz)")
+plt.title("Spectrogram of Collected BPSK Signal")
+plt.colorbar(label="Magnitude (dB)")
+plt.show()
 
 # Parameters for the Costas Loop
 loop_bandwidth = 0.01  # Loop filter bandwidth (adjust as needed for stable lock)
