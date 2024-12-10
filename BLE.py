@@ -34,7 +34,7 @@ def get_bit_stream(data_stream, downsample_ratio = 2):
 	freq_data = np.diff(continuous_phase)
 	
 	# Step 4: Plot the phase differential
-	ph.plotme(freq_data,name="Phase Differential Plot",show_grid=True,show_pips=True)
+	ph.plotme(freq_data,name="Phase Differential Plot",show_grid=False,show_pips=False)
 	
 	#############################################################
     #############################################################
@@ -68,7 +68,7 @@ def whiten_dynamic(bits, channel=38):
     #############################################################
     #############################################################
     #############################################################
-	exponents = [0, 3, 4, 6, 9, 10] # from core spec
+	exponents = [0, 4, 7] # from core spec
 	#############################################################
     #############################################################
     #############################################################
@@ -91,20 +91,12 @@ def whiten_dynamic(bits, channel=38):
     	#############################################################
     	#############################################################
     	#############################################################
-		# Define BLE preamble pattern to detect BLE frames
-		preamble_pattern = np.array([0, 1, 0, 1, 0, 1, 0, 1], dtype=int)
-
-		# Define a variable to store the locations of BLE frames
-		ble_frame_locations = []
-
-		# add bit to the output array
-		if x >= len(preamble_pattern) - 1:
-    		# Check for BLE preamble pattern match
-			current_window = bits[x - len(preamble_pattern) + 1 : x + 1]
-			if np.array_equal(current_window, preamble_pattern):
-				ble_frame_locations.append(x - len(preamble_pattern) + 1)
 	
 		out_bit = state[-1]
+
+		# add bit to the output array
+		out_array = np.append(out_array, out_bit)
+
 		#############################################################
     	#############################################################
     	#############################################################
@@ -275,7 +267,7 @@ def fix_CRC(packet_bits, CRC):
 	test = packet_bits
 	for i in range(len(packet_bits)):
 		test[i] = test[i]^1
-		if get_CRC_alt(test) == CRC: return test
+		if get_CRC(test) == CRC: return test
 		test = packet_bits
 	return []
 
