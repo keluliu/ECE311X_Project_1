@@ -1,7 +1,6 @@
 import numpy as np
 import plot_helpers as ph
 import BLE_Code_Lookup as lookup
-import BLEMain
 # BLE Methods ----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------
@@ -30,18 +29,13 @@ def get_bit_stream(data_stream, downsample_ratio = 2):
 	
 	# Step 2: Downsample the phase data to reduce complexity
 	downsampled_phase = continuous_phase[::downsample_ratio]
-	
-    # Step 3: Compute the phase differential (frequency changes)
-	time_step = 1/BLEMain.fs
-	freq = np.diff(continuous_phase) / (2 * np.pi * time_step)
+		
+    # Step 3: Compute the phase difference (frequency changes)
+	freq_data = np.diff(continuous_phase)
 	
 	# Step 4: Plot the phase differential
-	ph.plotme(freq,name="Phase Differential Plot",show_grid=True,show_pips=True)
+	ph.plotme(freq_data,name="Phase Differential Plot",show_grid=True,show_pips=True)
 	
-	# Step 5: Calculate freq_data (for return)
-
-	freq_data = np.append(freq, freq[-1])  # Match length with the original signal
-
 	#############################################################
     #############################################################
     #############################################################
@@ -90,85 +84,44 @@ def whiten_dynamic(bits, channel=38):
 	state = np.array([1] + channel_array, dtype=int) # from core spec
 	out_array = np.array([], dtype=int)
 	
-	# Define BLE preamble pattern to detect BLE frames
-	preamble_pattern = np.array([0, 1, 0, 1, 0, 1, 0, 1], dtype=int)
-
-	# Define a variable to store the locations of BLE frames
-	ble_frame_locations = []
-
 	# LFSR loop
 	for x in range(len(bits)):
 	
+		#############################################################
+    	#############################################################
+    	#############################################################
+    	#############################################################
+		# Define BLE preamble pattern to detect BLE frames
+		preamble_pattern = np.array([0, 1, 0, 1, 0, 1, 0, 1], dtype=int)
+
+		# Define a variable to store the locations of BLE frames
+		ble_frame_locations = []
+
 		# add bit to the output array
 		if x >= len(preamble_pattern) - 1:
     		# Check for BLE preamble pattern match
 			current_window = bits[x - len(preamble_pattern) + 1 : x + 1]
 			if np.array_equal(current_window, preamble_pattern):
 				ble_frame_locations.append(x - len(preamble_pattern) + 1)
+	
+		out_bit = state[-1]
+		#############################################################
+    	#############################################################
+    	#############################################################
+    	#############################################################
 		
-	# add a 0 to the front of the state array
-	# this will be changed to a 1 if needed by the xor
-	out_bit = state[-1]
-	out_array = np.append(out_array, out_bit)
-	state = np.insert(state[:-1], 0, 0)
-
-	# feedback is done as a single xor step
-	xor_array = out_bit*working_poly
-	state = np.bitwise_xor(state, xor_array)
+		
+		# add a 0 to the front of the state array
+		# this will be changed to a 1 if needed by the xor
+		state = np.insert(state[:-1], 0, 0)
+		
+		# feedback is done as a single xor step
+		xor_array = out_bit*working_poly
+		state = np.bitwise_xor(state, xor_array)
 		
 		
 	return np.bitwise_xor(bits, out_array)
 
-#-----------------------------------------------------------------------------------------
-
-### Confirm with TA if this is ok ###
-
-def capture_ble_frames(data_stream, frame_length=376):
-    """
-    Capture BLE frames from a data stream.
-
-    Args:
-        data_stream (np.ndarray): Binary stream of data bits.
-        frame_length (int): Expected BLE frame length in bits.
-
-    Returns:
-        np.ndarray: A 2D array where each row is a captured BLE frame.
-    """
-    # Find locations of BLE frames
-    frame_start_locations = find_advertising_packets(data_stream)
-
-    # Initialize a 2D array to store BLE frames
-    ble_frames = []
-
-    # Capture each BLE frame
-    for start in frame_start_locations:
-        # Extract the frame from the bit stream
-        frame = data_stream[start:start + frame_length]
-        if len(frame) < frame_length:
-            # Skip incomplete frames
-            continue
-        ble_frames.append(frame)
-
-    # Convert list of frames to a 2D numpy array
-    ble_frames_array = np.array(ble_frames, dtype=int)
-
-    print(f"Captured {len(ble_frames_array)} BLE frame(s).")
-
-	 # Initialize the full phase differential sequence
-    full_phase_differential = []
-
-    # Compute the phase differential for each frame
-    for frame in ble_frames:
-        # Convert bits to complex representation if necessary
-        # Assume bits are already properly mapped to phase
-        # Unwrap and compute the phase differential
-        phase = np.unwrap(np.angle(frame))
-        phase_differential = np.diff(phase) / (2 * np.pi * (1 / sampling_rate))  # Compute frequency
-        full_phase_differential.extend(phase_differential)
-
-    ph.plotme(full_phase_differential, name = "BLE Frame Phase Differential Plot", show_grid=True, show_pips=True)
-
-    return ble_frames_array
 
 #-----------------------------------------------------------------------------------------
 
